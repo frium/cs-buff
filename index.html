@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CSGO BUFF 数据查询</title>
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, "Microsoft YaHei", sans-serif;
+        background: #f5f6fa;
+        color: #333;
+        min-height: 100vh;
+      }
+      .header {
+        background: #fff;
+        border-bottom: 1px solid #e8e8e8;
+        padding: 14px 20px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      }
+      .header h1 {
+        font-size: 17px;
+        font-weight: 700;
+        color: #222;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .header h1 .material-icons {
+        color: #e94560;
+        font-size: 22px;
+      }
+      .filter-panel {
+        background: #fff;
+        border-bottom: 1px solid #e8e8e8;
+        padding: 16px 20px;
+      }
+      .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-end;
+      }
+      .filter-group {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 140px;
+        min-width: 120px;
+      }
+      .filter-group label {
+        font-size: 12px;
+        color: #999;
+        margin-bottom: 4px;
+      }
+      .filter-group input,
+      .filter-group select,
+      .toolbar select {
+        padding: 8px 10px;
+        width: 100%;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #fafafa;
+        color: #333;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      .filter-group input:focus,
+      .filter-group select:focus,
+      .toolbar select:focus {
+        border-color: #e94560;
+        box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.1);
+        background: #fff;
+      }
+      .toolbar select {
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 6px;
+      }
+      .btn-search {
+        padding: 8px 24px;
+        background: #e94560;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap;
+        transition: background 0.2s, transform 0.1s;
+        flex-shrink: 0;
+      }
+      .btn-search:hover {
+        background: #d63851;
+      }
+      .btn-search:active {
+        transform: scale(0.97);
+      }
+      .btn-search:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      .btn-search .material-icons {
+        font-size: 18px;
+      }
+      .toolbar {
+        display: none;
+        padding: 10px 20px;
+        background: #fff;
+        border-bottom: 1px solid #e8e8e8;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .toolbar.show {
+        display: flex;
+      }
+      .toolbar .result-count {
+        font-size: 13px;
+        color: #999;
+      }
+      .toolbar .result-count span {
+        color: #e94560;
+        font-weight: 600;
+      }
+      .status-bar {
+        padding: 0 20px;
+      }
+      .status-text {
+        font-size: 13px;
+        color: #bbb;
+        padding: 10px 0;
+      }
+      .progress-bar {
+        height: 3px;
+        background: #eee;
+        border-radius: 2px;
+        overflow: hidden;
+        display: none;
+      }
+      .progress-bar.active {
+        display: block;
+      }
+      .progress-bar .bar {
+        height: 100%;
+        background: #e94560;
+        border-radius: 2px;
+        animation: progress 1s ease-in-out infinite;
+      }
+      @keyframes progress {
+        0% {
+          width: 0;
+          opacity: 0.5;
+        }
+        50% {
+          width: 70%;
+          opacity: 1;
+        }
+        100% {
+          width: 100%;
+          opacity: 0.5;
+        }
+      }
+      #cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 16px;
+        padding: 16px 20px 40px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      .card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+      }
+      .card img {
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: contain;
+        background: #f8f9fb;
+        display: block;
+      }
+      .card .info {
+        padding: 10px 12px 12px;
+      }
+      .card .name {
+        font-size: 12px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 6px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .card .prices {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .card .price-item {
+        font-size: 11px;
+        color: #aaa;
+      }
+      .card .price-item .val {
+        display: block;
+        font-size: 14px;
+        font-weight: 700;
+        margin-top: 1px;
+      }
+      .card .price-item .val.buff {
+        color: #e94560;
+      }
+      .card .price-item .val.steam {
+        color: #4caf50;
+      }
+      .card .extra {
+        font-size: 11px;
+        color: #aaa;
+        margin-top: 4px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .card .extra span {
+        color: #555;
+        font-weight: 600;
+      }
+      .card .ratio-bar {
+        margin-top: 8px;
+        padding: 5px 10px;
+        border-radius: 6px;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .card .ratio-bar.positive {
+        background: #e8f5e9;
+        color: #2e7d32;
+      }
+      .card .ratio-bar.negative {
+        background: #fce4ec;
+        color: #c62828;
+      }
+      .card .links {
+        margin-top: 8px;
+        display: flex;
+        gap: 6px;
+      }
+      .card .links a {
+        flex: 1;
+        text-align: center;
+        font-size: 11px;
+        color: #999;
+        text-decoration: none;
+        padding: 4px 0;
+        border-radius: 5px;
+        background: #f5f6fa;
+        transition: background 0.2s, color 0.2s;
+      }
+      .card .links a:hover {
+        background: #e8e8ee;
+        color: #555;
+      }
+      .empty {
+        text-align: center;
+        padding: 80px 20px;
+        color: #ccc;
+      }
+      .empty .material-icons {
+        font-size: 48px;
+        margin-bottom: 12px;
+      }
+      @media (max-width: 480px) {
+        .header,
+        .filter-panel {
+          padding: 12px 16px;
+        }
+        .header h1 {
+          font-size: 16px;
+        }
+        .filter-row {
+          gap: 10px;
+        }
+        .filter-group {
+          flex: 1 1 100px;
+        }
+        .btn-search {
+          width: 100%;
+          justify-content: center;
+        }
+        #cards {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
+          padding: 12px 16px 32px;
+        }
+        .card .info {
+          padding: 8px;
+        }
+        .card .name {
+          font-size: 11px;
+        }
+        .card .prices {
+          flex-direction: column;
+          gap: 2px;
+        }
+        .toolbar {
+          padding: 8px 16px;
+        }
+      }
+    </style>
+    <script>
+      window.addEventListener("beforeunload", (e) => {
+        e.preventDefault();
+        e.returnValue = "";
+      });
+    </script>
+  </head>
+  <body>
+    <div class="header">
+      <h1><span class="material-icons">search</span>CSGO BUFF 数据查询</h1>
+    </div>
+    <div class="filter-panel">
+      <div class="filter-row">
+        <div class="filter-group">
+          <label>最低价格</label
+          ><input type="number" id="minPrice" value="1" min="0" />
+        </div>
+        <div class="filter-group">
+          <label>最高价格</label
+          ><input type="number" id="maxPrice" value="201" min="0" />
+        </div>
+        <div class="filter-group">
+          <label>武器分类</label
+          ><select id="category">
+            <option value="">全部</option>
+            <option value="rifle">步枪</option>
+            <option value="pistol">手枪</option>
+            <option value="smg">冲锋枪</option>
+            <option value="shotgun">霰弹枪</option>
+            <option value="machinegun">机枪</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>获取数量</label
+          ><select id="limit">
+            <option value="40" selected>前40条</option>
+            <option value="20">前20条</option>
+            <option value="60">前60条</option>
+            <option value="80">前80条</option>
+            <option value="100">前100条</option>
+            <option value="200">前200条</option>
+            <option value="400">前400条</option>
+            <option value="0">全部</option>
+          </select>
+        </div>
+        <button class="btn-search" id="fetchBtn" onclick="startFetch()">
+          <span class="material-icons">send</span>查询
+        </button>
+      </div>
+    </div>
+    <div class="toolbar show" id="sortBar">
+      <span class="result-count">共 <span id="countNum">0</span> 条</span
+      ><select id="profitFilter" onchange="applyFilterAndSort()">
+        <option value="0" selected>利润筛选: 全部</option>
+        <option value="0.05">5% 以上</option>
+        <option value="0.10">10% 以上</option>
+        <option value="0.15">15% 以上</option>
+        <option value="0.20">20% 以上</option>
+        <option value="0.30">30% 以上</option>
+        <option value="0.50">50% 以上</option></select
+      ><select id="sortBy" onchange="applyFilterAndSort()">
+        <option value="ratio-desc" selected>转化比 高→低</option>
+        <option value="ratio-asc">转化比 低→高</option>
+        <option value="buff-desc">BUFF价 高→低</option>
+        <option value="buff-asc">BUFF价 低→高</option>
+      </select>
+    </div>
+    <div class="status-bar">
+      <div class="status-text" id="status"></div>
+      <div class="progress-bar" id="progressBar"><div class="bar"></div></div>
+    </div>
+    <div id="cards">
+      <div class="empty">
+        <span class="material-icons">inventory_2</span>
+        <p>设置筛选条件后点击查询</p>
+      </div>
+    </div>
+    <script>
+      const $ = (id) => document.getElementById(id),
+        cardsEl = $("cards"),
+        statusEl = $("status"),
+        sortBarEl = $("sortBar"),
+        countEl = $("countNum"),
+        progressBar = $("progressBar"),
+        fetchBtn = $("fetchBtn");
+      let allItems = [];
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      function calcRatio(i) {
+        const s = parseFloat(i.goods_info.steam_price_cny) || 0,
+          q = parseFloat(i.quick_price) || 0;
+        return s > 0 ? (q * 0.975) / (s * 0.72) - 1 : 0;
+      }
+      function renderCard(i) {
+        const u = i.goods_info?.icon_url || "",
+          s = parseFloat(i.goods_info.steam_price_cny) || 0,
+          q = parseFloat(i.quick_price) || 0,
+          rt = s > 0 ? (i._ratio * 100).toFixed(1) + "%" : "-",
+          rc = i._ratio >= 0 ? "positive" : "negative",
+          c = document.createElement("div");
+        c.className = "card";
+        c.innerHTML = `<img src="${u}" alt="${
+          i.name
+        }" onerror="this.style.display='none'"/><div class="info"><div class="name" title="${
+          i.name
+        }">${
+          i.name || "未知"
+        }</div><div class="prices"><div class="price-item">BUFF价<span class="val buff">&yen;${q}</span></div><div class="price-item">Steam价<span class="val steam">&yen;${s}</span></div></div><div class="extra">在售<span>${
+          i.sell_num || 0
+        }</span> 求购<span>${
+          i.buy_num || 0
+        }</span></div><div class="ratio-bar ${rc}">${rt}</div><div class="links"><a href="https://buff.163.com/goods/${
+          i.id
+        }" target="_blank">BUFF</a><a href="${
+          i.steam_market_url || "#"
+        }" target="_blank">Steam</a></div></div>`;
+        return c;
+      }
+      function getFilteredItems() {
+        const minRatio = parseFloat($("profitFilter").value) || 0;
+        if (minRatio <= 0) return allItems;
+        return allItems.filter((i) => i._ratio >= minRatio);
+      }
+      function renderAll() {
+        cardsEl.innerHTML = "";
+        const items = getFilteredItems();
+        items.forEach((i) => cardsEl.appendChild(renderCard(i)));
+        countEl.textContent = items.length;
+      }
+      const sortMap = {
+        "ratio-desc": (a, b) =>
+          b._ratio - a._ratio || (b.sell_num || 0) - (a.sell_num || 0),
+        "ratio-asc": (a, b) =>
+          a._ratio - b._ratio || (b.sell_num || 0) - (a.sell_num || 0),
+        "buff-desc": (a, b) =>
+          parseFloat(b.quick_price) - parseFloat(a.quick_price),
+        "buff-asc": (a, b) =>
+          parseFloat(a.quick_price) - parseFloat(b.quick_price),
+      };
+      function applyFilterAndSort() {
+        const fn = sortMap[$("sortBy").value];
+        if (fn) {
+          allItems.sort(fn);
+          renderAll();
+        }
+      }
+      function autoSort() {
+        allItems.sort(sortMap["ratio-desc"]);
+        renderAll();
+      }
+      async function fetchPage(p, min, max, cat) {
+        let u = `/api/buff?page_num=${p}&min_price=${min}&max_price=${max}`;
+        if (cat) u += `&category_group=${cat}`;
+        const r = await fetch(u);
+        if (!r.ok) {
+          const e = await r.json().catch(() => ({}));
+          throw new Error(`HTTP ${r.status} ${e.error || ""}`);
+        }
+        return r.json();
+      }
+      let lastFetchTime = 0;
+      async function startFetch() {
+        const now = Date.now();
+        if (now - lastFetchTime < 3000) {
+          statusEl.textContent = `请等待${Math.ceil(
+            (3000 - (now - lastFetchTime)) / 1000
+          )}秒后再查询`;
+          return;
+        }
+        lastFetchTime = now;
+        cardsEl.innerHTML = "";
+        allItems = [];
+        $("sortBy").value = "ratio-desc";
+        $("profitFilter").value = "0";
+        fetchBtn.disabled = true;
+        progressBar.classList.add("active");
+        const min = $("minPrice").value,
+          max = $("maxPrice").value,
+          cat = $("category").value,
+          limit = parseInt($("limit").value),
+          total = limit === 0 ? Infinity : limit / 20;
+        try {
+          for (let p = 1; p <= total; p++) {
+            statusEl.textContent = `正在获取第${p}页...`;
+            let data;
+            try {
+              data = await fetchPage(p, min, max, cat);
+            } catch (err) {
+              if (err.message.includes("429")) {
+                statusEl.textContent = "请求频率限制，等待60秒后继续...";
+                await sleep(60000);
+                p--;
+                continue;
+              }
+              throw err;
+            }
+            if (data.code !== "OK") {
+              statusEl.textContent = "接口错误:" + (data.error || data.code);
+              break;
+            }
+            const items = (data.data?.items || []).filter(
+              (i) => (i.sell_num || 0) >= 500
+            );
+            if (!items.length) {
+              statusEl.textContent = "没有更多数据了。";
+              break;
+            }
+            items.forEach((i) => {
+              i._ratio = calcRatio(i);
+              allItems.push(i);
+              cardsEl.appendChild(renderCard(i));
+            });
+            countEl.textContent = allItems.length;
+            statusEl.textContent = `已获取${allItems.length}条`;
+            autoSort();
+            await sleep(3000);
+          }
+          statusEl.textContent = `查询完成，共${allItems.length}条数据。`;
+          autoSort();
+        } catch (err) {
+          statusEl.textContent = "请求出错:" + err.message;
+        } finally {
+          fetchBtn.disabled = false;
+          progressBar.classList.remove("active");
+        }
+      }
+    </script>
+  </body>
+</html>
